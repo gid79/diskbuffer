@@ -8,11 +8,11 @@ import java.nio.charset.StandardCharsets
 /**
  *
  */
-class DiskBufferSpecification extends Specification {
+class RecordBufferSpecification extends Specification {
 
     File file = File.createTempFile("diskbuffer", "dat")
 
-    DiskBuffer testObject = DiskBuffer.newBuilder().withPath(file.toPath()).build()
+    RecordBuffer testObject = RecordBuffer.newBuilder().withPath(file.toPath()).build()
 
     def bytes4000 = ('a' * 4000).bytes
 
@@ -74,7 +74,7 @@ class DiskBufferSpecification extends Specification {
 
         then:
         result.id() == 1L
-        result.type() == DiskBuffer.Type.INITIAL
+        result.type() == RecordBuffer.Type.INITIAL
     }
 
     def "readHeader returns id and type CONTIN for index 1"(){
@@ -85,7 +85,7 @@ class DiskBufferSpecification extends Specification {
 
         then:
         result.id() == 1L
-        result.type() == DiskBuffer.Type.CONTINUATION
+        result.type() == RecordBuffer.Type.CONTINUATION
     }
 
     def "readFrame returns buffer of limit frameSize for index 0"(){

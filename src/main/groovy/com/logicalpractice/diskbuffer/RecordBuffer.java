@@ -9,7 +9,7 @@ import java.nio.file.Path;
 /**
  *
  */
-public final class DiskBuffer implements AutoCloseable {
+public final class RecordBuffer implements AutoCloseable {
 
     enum Type {
         INITIAL,
@@ -61,14 +61,14 @@ public final class DiskBuffer implements AutoCloseable {
             return this;
         }
 
-        public DiskBuffer build() throws IOException {
+        public RecordBuffer build() throws IOException {
             if( dataFrameBuffer == null ) {
                 if( path == null ) {
                     throw new IllegalStateException("must specify either a 'path' or 'dataFrameBuffer'");
                 }
                 dataFrameBuffer = DataFrameBuffer.open(path);
             }
-            return new DiskBuffer(dataFrameBuffer, start, allocator).initialise();
+            return new RecordBuffer(dataFrameBuffer, start, allocator).initialise();
         }
     }
 
@@ -141,14 +141,14 @@ public final class DiskBuffer implements AutoCloseable {
     // this is about the only thing that changes ... it progresses as data is appended
     private volatile Position end ;
 
-    private DiskBuffer(DataFrameBuffer dfb, long start, BufferAllocator allocator) {
+    private RecordBuffer(DataFrameBuffer dfb, long start, BufferAllocator allocator) {
         this.dfb = dfb;
         this.allocator = allocator;
         this.frameSize = dfb.getFrameSize();
         this.start = start;
     }
 
-    private DiskBuffer initialise() throws IOException {
+    private RecordBuffer initialise() throws IOException {
         if( dfb.getFrameCount() > 0 ) {
             RecordHeader header = RecordHeader.fromBuffer(dfb.lastFrame());
             long id = header.id();

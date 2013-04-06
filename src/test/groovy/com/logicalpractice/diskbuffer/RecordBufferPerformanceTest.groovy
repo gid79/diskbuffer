@@ -11,13 +11,13 @@ import java.nio.ByteBuffer
 /**
  *
  */
-class DiskBufferPerformanceTest {
+class RecordBufferPerformanceTest {
 
     static File file = File.createTempFile("diskbuffer", "dat")
 
     static DataFrameBuffer dfb = DataFrameBuffer.open(file.toPath())
 
-    static DiskBuffer testObject = DiskBuffer.newBuilder().withDataFrameBuffer(dfb).build()
+    static RecordBuffer testObject = RecordBuffer.newBuilder().withDataFrameBuffer(dfb).build()
 
     @BeforeClass
     public static void setup(){
