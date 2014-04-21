@@ -3,9 +3,14 @@ package com.logicalpractice.diskbuffer.guava;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.io.File;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  *
@@ -22,7 +27,7 @@ public class SnapshotRestartableCacheBuilder<K,V> {
 
     private long snapshotAfterNanos = -1;
 
-    private ExecutorService snapshotExecutor;
+    private ExecutorService snapshotExecutor ;
 
     protected SnapshotRestartableCacheBuilder(CacheBuilder<K, V> cacheBuilder) {
         this.cacheBuilder = cacheBuilder ;
@@ -35,6 +40,10 @@ public class SnapshotRestartableCacheBuilder<K,V> {
 
     public Cache<K, V> build() {
       return new SnapshotCache.ManualCache<K, V>(this);
+    }
+
+    public LoadingCache<K, V> build(CacheLoader<K,V> loader) {
+      return new SnapshotCache.LocalLoadingCache<K, V>(this, loader);
     }
 
     public CacheBuilder<K, V> getCacheBuilder() {
@@ -58,6 +67,14 @@ public class SnapshotRestartableCacheBuilder<K,V> {
     }
 
     public ExecutorService snapshotExecutor() {
+        if (snapshotExecutor == null) {
+            return Executors.newSingleThreadExecutor(
+                    new ThreadFactoryBuilder()
+                            .setNameFormat("SNAPSHOT-%s")
+                            .setDaemon(true)
+                            .build()
+            );
+        }
         return snapshotExecutor;
     }
 }

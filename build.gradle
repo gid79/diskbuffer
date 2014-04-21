@@ -9,7 +9,8 @@ subprojects {
     repositories.jcenter()
     dependencies {
         compile 'com.google.guava:guava:16.0.1'
-    
+        compile 'com.google.code.findbugs:jsr305:2.0.3'
+
         testCompile "org.codehaus.groovy:groovy-all:2.1.1"
         testCompile 'org.spockframework:spock-core:0.7-groovy-2.0'
     }
