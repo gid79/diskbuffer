@@ -15,12 +15,16 @@ public final class RecordBuffer implements AutoCloseable {
         INITIAL,
         CONTINUATION;
 
-        public byte index() { return (byte)ordinal(); }
+        public byte index() {
+            return (byte) ordinal();
+        }
 
-        public static int metaSize(){ return 8 + 1 + 4 ; }
+        public static int metaSize() {
+            return 8 + 1 + 4;
+        }
 
         public static Type fromIndex(byte index) {
-            switch(index){
+            switch (index) {
                 case 0x0:
                     return INITIAL;
                 case 0x1:
@@ -37,7 +41,9 @@ public final class RecordBuffer implements AutoCloseable {
         private long start = 0;
 
         private BufferAllocator allocator = new DirectBufferAllocator();
-        private Builder(){}
+
+        private Builder() {
+        }
 
 
         public Builder withPath(Path path) {
@@ -55,15 +61,15 @@ public final class RecordBuffer implements AutoCloseable {
             return this;
         }
 
-        public Builder withAllocator( BufferAllocator allocator ){
-            Preconditions.checkArgument( allocator != null, "'allocator' must not be null");
+        public Builder withAllocator(BufferAllocator allocator) {
+            Preconditions.checkArgument(allocator != null, "'allocator' must not be null");
             this.allocator = allocator;
             return this;
         }
 
         public RecordBuffer build() throws IOException {
-            if( dataFrameBuffer == null ) {
-                if( path == null ) {
+            if (dataFrameBuffer == null) {
+                if (path == null) {
                     throw new IllegalStateException("must specify either a 'path' or 'dataFrameBuffer'");
                 }
                 dataFrameBuffer = DataFrameBuffer.open(path);
@@ -82,9 +88,18 @@ public final class RecordBuffer implements AutoCloseable {
             this.type = type;
             this.meta = meta;
         }
-        public long id() { return id; }
-        public Type type() { return type; }
-        public int meta() { return meta; }
+
+        public long id() {
+            return id;
+        }
+
+        public Type type() {
+            return type;
+        }
+
+        public int meta() {
+            return meta;
+        }
 
         /**
          * @return zero of negative adjustment to a dataFrame index to locate the INITIAL record
@@ -97,7 +112,7 @@ public final class RecordBuffer implements AutoCloseable {
             long id = readBuffer.getLong();
             Type type = Type.fromIndex(readBuffer.get());
             int meta = readBuffer.getInt();
-            return new RecordHeader( id, type, meta );
+            return new RecordHeader(id, type, meta);
         }
 
         @Override
@@ -119,27 +134,34 @@ public final class RecordBuffer implements AutoCloseable {
             this.id = id;
             this.index = index;
         }
-        public long id() { return id; }
+
+        public long id() {
+            return id;
+        }
 
         /**
          * @return the dataFrame index of the initial record
          */
-        public long index() { return index; }
+        public long index() {
+            return index;
+        }
     }
 
-    public static Builder newBuilder() { return new Builder(); }
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-    private final long start ;
-    private final int frameSize ;
+    private final long start;
+    private final int frameSize;
 
     private final DataFrameBuffer dfb;
 
-    private final BufferAllocator allocator ;
+    private final BufferAllocator allocator;
 
     private long recordCount = 0L;
 
     // this is about the only thing that changes ... it progresses as data is appended
-    private volatile Position end ;
+    private volatile Position end;
 
     private RecordBuffer(DataFrameBuffer dfb, long start, BufferAllocator allocator) {
         this.dfb = dfb;
@@ -149,7 +171,7 @@ public final class RecordBuffer implements AutoCloseable {
     }
 
     private RecordBuffer initialise() throws IOException {
-        if( dfb.getFrameCount() > 0 ) {
+        if (dfb.getFrameCount() > 0) {
             RecordHeader header = RecordHeader.fromBuffer(dfb.lastFrame());
             long id = header.id();
             long index = dfb.last() + header.frameAdjustment();
@@ -161,38 +183,47 @@ public final class RecordBuffer implements AutoCloseable {
         return this;
     }
 
-    public long start(){ return start ;}
+    public long start() {
+        return start;
+    }
 
-    private long first() { return start() + 1; }
+    private long first() {
+        return start() + 1;
+    }
 
-    public long end(){ return end.id(); }
+    public long end() {
+        return end.id();
+    }
 
-    public long size(){ return end() - start;}
+    public long size() {
+        return end() - start;
+    }
 
 
     /**
      * Append the readable contains of the given byte buffer
+     *
      * @param buffer required buffer
      * @return record id
      */
-    public long append( ByteBuffer buffer ) throws IOException {
+    public long append(ByteBuffer buffer) throws IOException {
         int recordSize = buffer.remaining();
 
         long recordId = end() + 1L;
         long recordPosition = dfb.getFrameCount();
 
-        ByteBuffer [] frames = frameBuffersFor(recordSize);
+        ByteBuffer[] frames = frameBuffersFor(recordSize);
         int availableFrame = frameSize - Type.metaSize();
 
         // prepare frames
         for (int i = 0; i < frames.length; i++) {
             ByteBuffer buff = frames[i];
-            Type type = i == 0 ? Type.INITIAL : Type.CONTINUATION ;
-            int toWrite = Math.min(buffer.remaining(), availableFrame );
+            Type type = i == 0 ? Type.INITIAL : Type.CONTINUATION;
+            int toWrite = Math.min(buffer.remaining(), availableFrame);
             buff.putLong(recordId);
 
             buff.put(type.index())
-                .putInt( type == Type.INITIAL ? recordSize : i);
+                    .putInt(type == Type.INITIAL ? recordSize : i);
 
             ByteBuffer view = buffer.duplicate();
             view.position(i * availableFrame).limit(toWrite);
@@ -202,7 +233,7 @@ public final class RecordBuffer implements AutoCloseable {
 
         dfb.append(frames);
 
-        recordCount ++;
+        recordCount++;
 
         // assigning this last makes the record visible via get()
         end = new Position(recordId, recordPosition);
@@ -210,11 +241,11 @@ public final class RecordBuffer implements AutoCloseable {
         return recordId;
     }
 
-    private ByteBuffer [] frameBuffersFor(int recordSize) {
+    private ByteBuffer[] frameBuffersFor(int recordSize) {
         int frameUsageSize = frameSize - Type.metaSize();
         int required = recordSize / frameUsageSize + 1;
 
-        ByteBuffer [] buffers = new ByteBuffer[required];
+        ByteBuffer[] buffers = new ByteBuffer[required];
 
         // possible optimisation is to allocate a single buffer and split into views
         for (int i = 0; i < required; i++) {
@@ -223,41 +254,41 @@ public final class RecordBuffer implements AutoCloseable {
         return buffers;
     }
 
-    public ByteBuffer get( long id ) throws IOException {
-        if( id <= start() ){
+    public ByteBuffer get(long id) throws IOException {
+        if (id <= start()) {
             throw new IllegalArgumentException("id <= start. Not present in this DiskBuffer");
         }
         long endId = end();
-        if( id > endId ){
+        if (id > endId) {
             throw new IllegalArgumentException("id > end. Not present in this DiskBuffer");
         }
 
         // special case the last record
-        if( id == endId ) {
-            return readRecordStarting( end.index() );
+        if (id == endId) {
+            return readRecordStarting(end.index());
         }
-        if( id == start + 1 ) { // start is the id before the first
-            return readRecordStarting( 0 );
+        if (id == start + 1) { // start is the id before the first
+            return readRecordStarting(0);
         }
 
         long recordIndex = id - first(); // looking for the recordIndex'th record in this buffer
 
-        long frameIndex = recordIndex * averageFrameCount()  ;
+        long frameIndex = recordIndex * averageFrameCount();
 
-        RecordHeader header ;
+        RecordHeader header;
 
-        header = readHeader( frameIndex );
+        header = readHeader(frameIndex);
         boolean found = false;
-        while( !found ){
+        while (!found) {
             long idDiff = header.id() - id;
             if (idDiff == 0) {
                 // found the record...
                 frameIndex = frameIndex + header.frameAdjustment();
                 found = true;
-            } else if ( idDiff < 0) {
+            } else if (idDiff < 0) {
                 // miss... but by how much? locate the initial header of the found record
                 long foundRecordFrameIndex = frameIndex + header.frameAdjustment();
-                header = readHeader( foundRecordFrameIndex );
+                header = readHeader(foundRecordFrameIndex);
                 assert header.type() == Type.INITIAL;
 
                 // must move backward
@@ -270,7 +301,7 @@ public final class RecordBuffer implements AutoCloseable {
         }
 
         // frameIndex will be set
-        return readRecordStarting( frameIndex );
+        return readRecordStarting(frameIndex);
     }
 
     private ByteBuffer readRecordStarting(long frameIndex) throws IOException {
@@ -287,22 +318,22 @@ public final class RecordBuffer implements AutoCloseable {
         int remaining = dataSize;
         int metaSize = Type.metaSize();
         int frameAvailable = frameSize - metaSize;
-        int toRead = Math.min(frameAvailable, remaining );
-        frame.limit( metaSize + toRead );
+        int toRead = Math.min(frameAvailable, remaining);
+        frame.limit(metaSize + toRead);
         result.put(frame);
 
         remaining -= toRead;
 
-        while( remaining > 0 ) {
-            frameIndex ++;
-            frame = dfb.get( frameIndex );
+        while (remaining > 0) {
+            frameIndex++;
+            frame = dfb.get(frameIndex);
             RecordHeader header = RecordHeader.fromBuffer(frame);
-            if( header.id() != frameIndex ) {
+            if (header.id() != frameIndex) {
                 throw new IllegalStateException("Corrupt datafile, was expecting id=" + frameIndex + " but got:" + header);
             }
-            toRead = Math.min(frameAvailable, remaining );
+            toRead = Math.min(frameAvailable, remaining);
             frame.position(metaSize).limit(metaSize + toRead);
-            result.put( frame );
+            result.put(frame);
         }
         result.flip();
 
@@ -310,15 +341,15 @@ public final class RecordBuffer implements AutoCloseable {
     }
 
     private int averageFrameCount() {
-        return (int) (dfb.getFrameCount() / recordCount) ; // todo make averageFrameCount a lot smarter
+        return (int) (dfb.getFrameCount() / recordCount); // todo make averageFrameCount a lot smarter
     }
 
 
-    RecordHeader readHeader( long index ) throws IOException {
+    RecordHeader readHeader(long index) throws IOException {
         return RecordHeader.fromBuffer(dfb.get(index));
     }
 
-    ByteBuffer readFrame( long index ) throws IOException {
+    ByteBuffer readFrame(long index) throws IOException {
         return dfb.get(index);
     }
 

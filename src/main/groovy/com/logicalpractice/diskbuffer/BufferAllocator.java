@@ -7,7 +7,7 @@ import java.nio.ByteBuffer;
  */
 public interface BufferAllocator {
 
-    ByteBuffer allocate( int size );
+    ByteBuffer allocate(int size);
 
-    void recycle( ByteBuffer buffer );
+    void recycle(ByteBuffer buffer);
 }

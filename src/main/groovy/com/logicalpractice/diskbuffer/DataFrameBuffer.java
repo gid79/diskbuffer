@@ -1,7 +1,6 @@
 package com.logicalpractice.diskbuffer;
 
 import com.google.common.base.Throwables;
-import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -10,9 +9,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -37,8 +33,8 @@ public final class DataFrameBuffer implements AutoCloseable {
             return bytes;
         }
 
-        void inc( long bytes ) {
-            ops ++;
+        void inc(long bytes) {
+            ops++;
             this.bytes += bytes;
         }
 
@@ -57,8 +53,8 @@ public final class DataFrameBuffer implements AutoCloseable {
     }
 
     class Page {
-        private final long number ;
-        private final ByteBuffer buffer ;
+        private final long number;
+        private final ByteBuffer buffer;
 
         Page(long number, ByteBuffer buffer) {
             this.number = number;
@@ -73,28 +69,28 @@ public final class DataFrameBuffer implements AutoCloseable {
             return buffer;
         }
 
-        ByteBuffer frame(int index){
+        ByteBuffer frame(int index) {
             ByteBuffer dupe = buffer.asReadOnlyBuffer();
             int fs = frameSize;
             int offset = index * fs;
-            dupe.limit( offset + fs )
-                .position(offset);
+            dupe.limit(offset + fs)
+                    .position(offset);
             return dupe.slice();
         }
     }
 
-    public static final int DEFAULT_PAGE_SIZE = (int)Math.pow(2, 16); // 64k
+    public static final int DEFAULT_PAGE_SIZE = (int) Math.pow(2, 16); // 64k
 
     public static final int DEFAULT_FRAME_SIZE = DEFAULT_PAGE_SIZE / 32; // 2k
 
     public static DataFrameBuffer open(Path path, BufferAllocator allocator, int pageSize, int frameSize)
             throws IOException {
 
-        checkArgument( path != null, "'path' is required");
-        checkArgument( allocator != null, "'allocator' is required");
-        checkArgument( pageSize > 0, "'pageSize' must be positive");
-        checkArgument( frameSize > 0, "'frameSize' must be positive");
-        checkArgument( pageSize % frameSize == 0, "'frameSize' must be a factor of 'pageSize'");
+        checkArgument(path != null, "'path' is required");
+        checkArgument(allocator != null, "'allocator' is required");
+        checkArgument(pageSize > 0, "'pageSize' must be positive");
+        checkArgument(frameSize > 0, "'frameSize' must be positive");
+        checkArgument(pageSize % frameSize == 0, "'frameSize' must be a factor of 'pageSize'");
 
         FileChannel fc = FileChannel.open(path, READ, WRITE, CREATE);
 
@@ -106,19 +102,19 @@ public final class DataFrameBuffer implements AutoCloseable {
     }
 
     public static DataFrameBuffer open(Path path) throws IOException {
-        return open( path, new DirectBufferAllocator(), DataFrameBuffer.DEFAULT_PAGE_SIZE, DataFrameBuffer.DEFAULT_FRAME_SIZE);
+        return open(path, new DirectBufferAllocator(), DataFrameBuffer.DEFAULT_PAGE_SIZE, DataFrameBuffer.DEFAULT_FRAME_SIZE);
     }
 
     private final int pageSize;
 
-    private final int frameSize ;
+    private final int frameSize;
 
-    private final int framesPerPage ;
+    private final int framesPerPage;
 
-    private long pageCount = 0 ;  // complete pages
+    private long pageCount = 0;  // complete pages
     private long frameCount = 0;
 
-    private Page lastPage ;
+    private Page lastPage;
 
     private final FileChannel fileChannel;
 
@@ -127,7 +123,7 @@ public final class DataFrameBuffer implements AutoCloseable {
     private final Stat readStat = new Stat();
     private final Stat writeStat = new Stat();
 
-    private final LoadingCache<Long, Page> pageCache ;
+    private final LoadingCache<Long, Page> pageCache;
 
     private DataFrameBuffer(FileChannel fileChannel, BufferAllocator allocator, int pageSize, int frameSize) {
         this.fileChannel = fileChannel;
@@ -150,43 +146,43 @@ public final class DataFrameBuffer implements AutoCloseable {
     private void initialise() throws IOException {
         ByteBuffer lastPageBuff = allocator.allocate(pageSize);
         long size = fileChannel.size();
-        if( size == 0 ){
+        if (size == 0) {
             pageCount = 0;
             frameCount = 0;
             lastPage = new Page(0, lastPageBuff);
         } else {
-            if( size % frameSize > 0 ) {
+            if (size % frameSize > 0) {
                 throw new IllegalStateException("Unable to handle corrupt frame files at the moment");
             }
-            long completePages = size / pageSize ;
+            long completePages = size / pageSize;
             long lastPageOffset = completePages * pageSize;
             long lastPageSize = size - lastPageOffset;
-            if( lastPageSize > 0 ){
+            if (lastPageSize > 0) {
                 int read = 0;
-                while( read < lastPageSize ){
+                while (read < lastPageSize) {
                     read += fileChannel.read(lastPageBuff, lastPageOffset + read);
                 }
             }
             pageCount = completePages;
-            frameCount = completePages * (pageSize / frameSize) + (lastPageSize / frameSize) ;
+            frameCount = completePages * (pageSize / frameSize) + (lastPageSize / frameSize);
             lastPage = new Page(completePages + 1, lastPageBuff);
         }
     }
 
     public void append(ByteBuffer frame) throws IOException {
-        append(new ByteBuffer[]{frame} );
+        append(new ByteBuffer[]{frame});
     }
 
-    public void append(ByteBuffer [] frames) throws IOException {
+    public void append(ByteBuffer[] frames) throws IOException {
         checkBuffersSizes(frames);
         int framesWritten = 0;
-        while( framesWritten < frames.length ) {
+        while (framesWritten < frames.length) {
 
             int remainingFrames = ensureRemainingFrames();
-            assert remainingFrames > 0: "Should have more than 0 remaining frames";
-            int framesToWrite = Math.min(remainingFrames,frames.length - framesWritten);
+            assert remainingFrames > 0 : "Should have more than 0 remaining frames";
+            int framesToWrite = Math.min(remainingFrames, frames.length - framesWritten);
 
-            ByteBuffer [] toWrite = new ByteBuffer[framesToWrite];
+            ByteBuffer[] toWrite = new ByteBuffer[framesToWrite];
             System.arraycopy(frames, framesWritten, toWrite, 0, framesToWrite);
 
             int expected = framesToWrite * frameSize;
@@ -211,30 +207,30 @@ public final class DataFrameBuffer implements AutoCloseable {
 
     private int ensureRemainingFrames() {
         int remaining = lastPage.getBuffer().remaining() / frameSize;
-        if( remaining == 0 ) {
-            Page previousPage = lastPage ;
-            lastPage = new Page( previousPage.getNumber() + 1L, allocator.allocate(pageSize));
-            pageCount ++;
+        if (remaining == 0) {
+            Page previousPage = lastPage;
+            lastPage = new Page(previousPage.getNumber() + 1L, allocator.allocate(pageSize));
+            pageCount++;
             pageCache.put(previousPage.getNumber(), previousPage);
             remaining = framesPerPage;
         }
         return remaining;
     }
 
-    public ByteBuffer get( long index ) throws IOException {
-        if( index >= frameCount ) {
+    public ByteBuffer get(long index) throws IOException {
+        if (index >= frameCount) {
             throw new IllegalArgumentException("index is greater than current last frame");
         }
-        if( index < 0 ) {
+        if (index < 0) {
             throw new IllegalArgumentException("index is less than zero");
         }
         long page = index / framesPerPage;
-        return page(page).frame( (int)index % framesPerPage);
+        return page(page).frame((int) index % framesPerPage);
     }
 
 
     public ByteBuffer lastFrame() throws IOException {
-        if( frameCount == 0 ) {
+        if (frameCount == 0) {
             throw new IllegalStateException("No last page, the buffer is empty");
         }
         return get(last());
@@ -244,9 +240,9 @@ public final class DataFrameBuffer implements AutoCloseable {
         return frameCount - 1L;
     }
 
-    private Page page( long pageNumber ) throws IOException {
+    private Page page(long pageNumber) throws IOException {
 
-        if( pageNumber == pageCount ) {
+        if (pageNumber == pageCount) {
             // is last page
             return lastPage;
         }
@@ -260,7 +256,7 @@ public final class DataFrameBuffer implements AutoCloseable {
         }
     }
 
-    private Page loadPage( long pageNumber ) throws IOException {
+    private Page loadPage(long pageNumber) throws IOException {
         ByteBuffer page = allocator.allocate(pageSize);
 
         int toRead = pageSize;
@@ -272,24 +268,28 @@ public final class DataFrameBuffer implements AutoCloseable {
 
     private void read(ByteBuffer page, long offset, int toRead) throws IOException {
         int haveRead = 0;
-        while( haveRead < toRead ) {
+        while (haveRead < toRead) {
             haveRead += fileChannel.read(page, offset + haveRead);
         }
 
-        readStat.inc( haveRead );
+        readStat.inc(haveRead);
     }
 
     private void write(ByteBuffer[] toWrite, int expected) throws IOException {
         int written = 0;
-        while( written < expected ) written += fileChannel.write(toWrite);
+        while (written < expected) written += fileChannel.write(toWrite);
 
         writeStat.inc(written);
 
     }
 
-    public int getFrameSize() { return frameSize; }
+    public int getFrameSize() {
+        return frameSize;
+    }
 
-    public long getFrameCount() { return frameCount; }
+    public long getFrameCount() {
+        return frameCount;
+    }
 
     @Override
     public void close() throws Exception {
