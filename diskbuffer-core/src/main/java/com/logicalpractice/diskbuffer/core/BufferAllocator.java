@@ -1,4 +1,4 @@
-package com.logicalpractice.diskbuffer;
+package com.logicalpractice.diskbuffer.core;
 
 import java.nio.ByteBuffer;
 

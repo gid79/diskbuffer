@@ -2,3 +2,5 @@
 rootProject.name = 'diskbuffer'
 
 include 'diskbuffer-core'
+include 'diskbuffer-guava'
+

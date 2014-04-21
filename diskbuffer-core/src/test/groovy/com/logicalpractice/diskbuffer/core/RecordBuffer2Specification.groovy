@@ -1,5 +1,6 @@
-package com.logicalpractice.diskbuffer
+package com.logicalpractice.diskbuffer.core
 
+import com.logicalpractice.diskbuffer.core.RecordBuffer
 import spock.lang.Specification
 
 import java.nio.ByteBuffer

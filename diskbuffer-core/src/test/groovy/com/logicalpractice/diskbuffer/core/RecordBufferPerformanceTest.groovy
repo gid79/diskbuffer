@@ -1,4 +1,4 @@
-package com.logicalpractice.diskbuffer
+package com.logicalpractice.diskbuffer.core
 
 import org.junit.After
 import org.junit.AfterClass
