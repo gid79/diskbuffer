@@ -1,21 +1,27 @@
 
-apply plugin:'groovy'
 apply plugin:'idea'
+
+
+
+subprojects {
+    apply plugin:'groovy'
     
-repositories.mavenCentral()
+    repositories.jcenter()
+    dependencies {
+        compile "com.google.guava:guava:14.0.1"
     
-dependencies {
-    compile "org.codehaus.groovy:groovy-all:2.1.1"
-    compile "com.google.guava:guava:14.0.1"
-    testCompile 'org.spockframework:spock-core:0.7-groovy-2.0'
+        testCompile "org.codehaus.groovy:groovy-all:2.1.1"
+        testCompile 'org.spockframework:spock-core:0.7-groovy-2.0'
+    }
+
+
+    task runConsole(type:JavaExec,dependsOn:'classes') {
+        main = "org.codehaus.groovy.tools.GroovyStarter"
+        args = ["--main", "groovy.ui.Console"]
+        classpath = sourceSets.main.runtimeClasspath
+    }
 }
 
 task wrapper(type:Wrapper) {
     gradleVersion = "1.11"
-}
-
-task runConsole(type:JavaExec,dependsOn:'classes') {
-    main = "org.codehaus.groovy.tools.GroovyStarter"
-    args = ["--main", "groovy.ui.Console"]
-    classpath = sourceSets.main.runtimeClasspath
 }
