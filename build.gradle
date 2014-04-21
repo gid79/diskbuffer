@@ -11,7 +11,7 @@ dependencies {
 }
 
 task wrapper(type:Wrapper) {
-    gradleVersion = "1.4"
+    gradleVersion = "1.11"
 }
 
 task runConsole(type:JavaExec,dependsOn:'classes') {
