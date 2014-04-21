@@ -9,64 +9,30 @@ import spock.lang.Specification
  */
 class SnapshotCacheSpec extends Specification {
 
-    def "cache builder should return a cache impl"() {
-        when:
-        def result = SnapshotRestartableCacheBuilder.from(CacheBuilder.newBuilder()).build()
+  def "should be able to write and read self"() {
+    setup:
+    def cache1 = new SnapshotCache.ManualCache(SnapshotRestartableCacheBuilder.from(CacheBuilder.newBuilder()))
+    cache1.putAll([
+        1:2,
+        2:3,
+        3:4,
+        4:5
+    ])
 
-        then:
-        result != null
-        result.size() == 0L
-        result.asMap() == [:]
+    def cache2 = new SnapshotCache.ManualCache(SnapshotRestartableCacheBuilder.from(CacheBuilder.newBuilder()))
 
-        ! result.getIfPresent("banana")
-    }
-
-    def "cache builder should return a usable impl"() {
-        setup:
-        def cache = SnapshotRestartableCacheBuilder.from(CacheBuilder.newBuilder()).build()
-        when:
-        cache.putAll([
-            1:2,
-            2:3,
-            3:4,
-            4:5
-        ])
-
-        then:
-        cache.size() == 4L
-        cache.asMap() == [
-                    1:2,
-                    2:3,
-                    3:4,
-                    4:5
-                ]
-
-        cache.getIfPresent(1)
-    }
-
-  def "cache builder should return a usable loading cache"() {
     when:
-    def result = SnapshotRestartableCacheBuilder
-        .from(CacheBuilder.newBuilder())
-        .build([load: { k -> "value :" + k}]  as CacheLoader)
+    def baos = new ByteArrayOutputStream()
+    cache1.writeTo(baos)
+
+    cache2.readFrom(new ByteArrayInputStream(baos.toByteArray()))
 
     then:
-    result != null
-    result.size() == 0L
-    result.asMap() == [:]
-
-    ! result.getIfPresent("banana")
-
-  }
-
-  def "cache builder should return a usable loading cache 2"() {
-    when:
-    def cache = SnapshotRestartableCacheBuilder
-        .from(CacheBuilder.newBuilder())
-        .build([load: { k -> "value :" + k}]  as CacheLoader)
-
-    then:
-    cache.get(1) == "value :1"
-    cache.get(2) == "value :2"
+    cache2.asMap() == [
+        1:2,
+        2:3,
+        3:4,
+        4:5
+    ]
   }
 }

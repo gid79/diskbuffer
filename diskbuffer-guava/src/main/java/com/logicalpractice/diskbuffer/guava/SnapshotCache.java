@@ -11,8 +11,16 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
 
 import javax.annotation.Nullable;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
@@ -21,22 +29,33 @@ import java.util.concurrent.ExecutorService;
 /**
  *
  */
-class SnapshotCache<K, V> implements LoadingCache<K,V> {
+class SnapshotCache<K, V> implements LoadingCache<K, V> {
 
-    private File directory;
-    private String name;
-    private ExecutorService executorService;
+    private final File directory;
+    private final String name;
+    private final ExecutorService executorService;
 
-    private Cache<K,V> cache;
-    private LoadingCache<K,V> loadingCache;
+    private final Cache<K, V> cache;
+    private final LoadingCache<K, V> loadingCache;
+
+    private final Serializer keySerializer;
+    private final Serializer valueSerializer;
+    private final Deserializer<K> keyDeserializer;
+    private final Deserializer<V> valueDeserializer;
 
     SnapshotCache(
             SnapshotRestartableCacheBuilder<K, V> builder,
-            @Nullable CacheLoader<K,V> cacheLoader
+            @Nullable CacheLoader<K, V> cacheLoader
     ) {
         this.directory = new File(builder.baseDirectory());
         this.name = builder.name();
         this.executorService = builder.snapshotExecutor();
+
+        this.keySerializer = builder.keySerializer();
+        this.valueSerializer = builder.valueSerializer();
+
+        this.keyDeserializer = builder.keyDeserializer();
+        this.valueDeserializer = builder.valueDeserializer();
 
         if (directory.exists()) {
             if (!directory.isDirectory())
@@ -59,6 +78,65 @@ class SnapshotCache<K, V> implements LoadingCache<K,V> {
         // todo must load snapshot from the disk
     }
 
+    private void writeTo(OutputStream outputStream) throws IOException {
+        List [] snapshot = snapshot();
+        List keys = snapshot[0];
+        List values = snapshot[1];
+
+        DataOutputStream dataOut = new DataOutputStream(outputStream);
+        int length = keys.size();
+        dataOut.writeInt(length);
+        for (int i = 0; i < length; i ++) {
+            byte [] key = keySerializer.serialize(keys.get(i));
+            byte [] value = valueSerializer.serialize(values.get(i));
+            dataOut.writeInt(key.length);
+            dataOut.write(key);
+            dataOut.writeInt(value.length);
+            dataOut.write(value);
+        }
+    }
+
+    private List [] snapshot() {
+        // in theory this method may be implemented in the future using an exclusive lock
+        // in order to ensure we have a consistent view of the backing cache
+        Set<Map.Entry<K, V>> entries = cache.asMap().entrySet();
+        List<Object> keys = new ArrayList<>(entries.size());
+        List<Object> values = new ArrayList<>(entries.size());
+
+        for (Map.Entry<K, V> entry : entries) {
+            keys.add(entry.getKey());
+            values.add(entry.getValue());
+        }
+        return new List[] {keys, values};
+    }
+
+    private void readFrom(InputStream inputStream) throws IOException {
+        DataInputStream dataIn = new DataInputStream(inputStream);
+        byte [] keyBuf = null, valueBuf = null;
+
+        int length = dataIn.readInt();
+        for (int i = 0; i < length; i++) {
+            int keyLength = dataIn.readInt();
+            keyBuf = ensureSize(keyBuf, keyLength);
+            dataIn.readFully(keyBuf, 0, keyLength);
+
+            int valueLength = dataIn.readInt();
+            valueBuf = ensureSize(valueBuf, valueLength);
+            dataIn.readFully(valueBuf, 0, valueLength);
+
+            K key = keyDeserializer.fromBytes(keyBuf, 0, keyLength);
+            V value = valueDeserializer.fromBytes(valueBuf, 0, valueLength);
+
+            cache.put(key, value);
+        }
+    }
+
+    private byte [] ensureSize(byte [] existing, int requiredSize){
+        if (existing == null || existing.length < requiredSize) {
+            return new byte[requiredSize * 2];
+        }
+        return existing;
+    }
     // Cache methods ...
 
     @Override
@@ -148,19 +226,27 @@ class SnapshotCache<K, V> implements LoadingCache<K,V> {
 
         ManualCache(SnapshotRestartableCacheBuilder<K, V> builder) {
             Preconditions.checkNotNull(builder, "'builder' is required");
-            this.snapshotCache = new SnapshotCache<K,V>(builder, null);
+            this.snapshotCache = new SnapshotCache<K, V>(builder, null);
         }
 
         @Override
         protected Cache<K, V> delegate() {
             return snapshotCache;
         }
+
+        void writeTo(OutputStream outputStream) throws IOException {
+            snapshotCache.writeTo(outputStream);
+        }
+
+        void readFrom(InputStream inputStream) throws IOException {
+            snapshotCache.readFrom(inputStream);
+        }
     }
 
-    static class LocalLoadingCache<K,V> extends  ForwardingLoadingCache<K,V> {
-        private final SnapshotCache<K,V> snapshotCache;
+    static class LocalLoadingCache<K, V> extends ForwardingLoadingCache<K, V> {
+        private final SnapshotCache<K, V> snapshotCache;
 
-        LocalLoadingCache(SnapshotRestartableCacheBuilder<K, V> builder, CacheLoader<K,V> loader) {
+        LocalLoadingCache(SnapshotRestartableCacheBuilder<K, V> builder, CacheLoader<K, V> loader) {
             Preconditions.checkNotNull(loader, "'loader' is required");
             this.snapshotCache = new SnapshotCache<>(builder, loader);
         }

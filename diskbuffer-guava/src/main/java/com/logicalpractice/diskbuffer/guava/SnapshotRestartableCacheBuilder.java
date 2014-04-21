@@ -29,6 +29,14 @@ public class SnapshotRestartableCacheBuilder<K,V> {
 
     private ExecutorService snapshotExecutor ;
 
+    private Serializer keySerializer = new JavaSerializer();
+
+    private Serializer valueSerializer = new JavaSerializer();
+
+    private Deserializer<K> keyDeserializer = new JavaDeserializer<>();
+
+    private Deserializer<V> valueDeserializer = new JavaDeserializer<>();
+
     protected SnapshotRestartableCacheBuilder(CacheBuilder<K, V> cacheBuilder) {
         this.cacheBuilder = cacheBuilder ;
     }
@@ -77,4 +85,14 @@ public class SnapshotRestartableCacheBuilder<K,V> {
         }
         return snapshotExecutor;
     }
+
+
+    public Serializer keySerializer() { return keySerializer; }
+
+    public Serializer valueSerializer() { return valueSerializer; }
+
+    public Deserializer<K> keyDeserializer() { return keyDeserializer; }
+
+    public Deserializer<V> valueDeserializer() { return valueDeserializer; }
+
 }
