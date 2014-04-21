@@ -1,5 +1,11 @@
 package com.logicalpractice.diskbuffer;
 
+import com.google.common.base.Throwables;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -7,8 +13,12 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.READ;
+import static java.nio.file.StandardOpenOption.WRITE;
 
 /**
  *
@@ -86,7 +96,7 @@ public final class DataFrameBuffer implements AutoCloseable {
         checkArgument( frameSize > 0, "'frameSize' must be positive");
         checkArgument( pageSize % frameSize == 0, "'frameSize' must be a factor of 'pageSize'");
 
-        FileChannel fc = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
+        FileChannel fc = FileChannel.open(path, READ, WRITE, CREATE);
 
         DataFrameBuffer dfb = new DataFrameBuffer(fc, allocator, pageSize, frameSize);
 
@@ -114,10 +124,10 @@ public final class DataFrameBuffer implements AutoCloseable {
 
     private final BufferAllocator allocator;
 
-    private Stat readStat = new Stat();
-    private Stat writeStat = new Stat();
+    private final Stat readStat = new Stat();
+    private final Stat writeStat = new Stat();
 
-    private List<Page> pageCache = new LinkedList<>();
+    private final LoadingCache<Long, Page> pageCache ;
 
     private DataFrameBuffer(FileChannel fileChannel, BufferAllocator allocator, int pageSize, int frameSize) {
         this.fileChannel = fileChannel;
@@ -127,6 +137,14 @@ public final class DataFrameBuffer implements AutoCloseable {
 
         this.framesPerPage = pageSize / frameSize;
 
+        this.pageCache = CacheBuilder.newBuilder()
+                .maximumSize(100)
+                .build(new CacheLoader<Long, Page>() {
+                    @Override
+                    public Page load(Long key) throws Exception {
+                        return loadPage(key);
+                    }
+                });
     }
 
     private void initialise() throws IOException {
@@ -197,7 +215,7 @@ public final class DataFrameBuffer implements AutoCloseable {
             Page previousPage = lastPage ;
             lastPage = new Page( previousPage.getNumber() + 1L, allocator.allocate(pageSize));
             pageCount ++;
-            pageCache.add( previousPage );
+            pageCache.put(previousPage.getNumber(), previousPage);
             remaining = framesPerPage;
         }
         return remaining;
@@ -232,8 +250,14 @@ public final class DataFrameBuffer implements AutoCloseable {
             // is last page
             return lastPage;
         }
-        // todo cache pages in an LRU list
-        return loadPage( pageNumber );
+
+        try {
+            return pageCache.get(pageNumber); // calls loadPage internally
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            Throwables.propagateIfPossible(cause, IOException.class);
+            throw new RuntimeException("unexpected", cause); // <-- Shouldn't really ever happen
+        }
     }
 
     private Page loadPage( long pageNumber ) throws IOException {
