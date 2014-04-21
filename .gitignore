@@ -5,3 +5,4 @@ classes
 *.ipr
 *.iml
 .gradle
+.idea
