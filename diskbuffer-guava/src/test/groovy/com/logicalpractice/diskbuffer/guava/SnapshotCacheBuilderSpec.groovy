@@ -7,11 +7,11 @@ import spock.lang.Specification
 /**
  *
  */
-class SnapshotRestartableCacheBuilderSpec extends Specification {
+class SnapshotCacheBuilderSpec extends Specification {
 
   def "cache builder should return a cache impl"() {
     when:
-    def result = SnapshotRestartableCacheBuilder.from(CacheBuilder.newBuilder()).build()
+    def result = SnapshotCacheBuilder.from(CacheBuilder.newBuilder()).build()
 
     then:
     result != null
@@ -23,7 +23,7 @@ class SnapshotRestartableCacheBuilderSpec extends Specification {
 
   def "cache builder should return a usable impl"() {
     setup:
-    def cache = SnapshotRestartableCacheBuilder.from(CacheBuilder.newBuilder()).build()
+    def cache = SnapshotCacheBuilder.from(CacheBuilder.newBuilder()).build()
     when:
     cache.putAll([
         1:2,
@@ -46,7 +46,7 @@ class SnapshotRestartableCacheBuilderSpec extends Specification {
 
   def "cache builder should return a usable loading cache"() {
     when:
-    def result = SnapshotRestartableCacheBuilder
+    def result = SnapshotCacheBuilder
         .from(CacheBuilder.newBuilder())
         .build([load: { k -> "value :" + k}]  as CacheLoader)
 
@@ -61,7 +61,7 @@ class SnapshotRestartableCacheBuilderSpec extends Specification {
 
   def "cache builder should return a usable loading cache 2"() {
     when:
-    def cache = SnapshotRestartableCacheBuilder
+    def cache = SnapshotCacheBuilder
         .from(CacheBuilder.newBuilder())
         .build([load: { k -> "value :" + k}]  as CacheLoader)
 

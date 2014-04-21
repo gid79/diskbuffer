@@ -5,17 +5,15 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
-import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
  *
  */
-public class SnapshotRestartableCacheBuilder<K,V> {
+public class SnapshotCacheBuilder<K,V> {
 
     private final CacheBuilder<K, V> cacheBuilder;
 
@@ -37,13 +35,13 @@ public class SnapshotRestartableCacheBuilder<K,V> {
 
     private Deserializer<V> valueDeserializer = new JavaDeserializer<>();
 
-    protected SnapshotRestartableCacheBuilder(CacheBuilder<K, V> cacheBuilder) {
+    protected SnapshotCacheBuilder(CacheBuilder<K, V> cacheBuilder) {
         this.cacheBuilder = cacheBuilder ;
     }
 
-    public static <K,V> SnapshotRestartableCacheBuilder<K,V> from(CacheBuilder<K,V> cacheBuilder) {
+    public static <K,V> SnapshotCacheBuilder<K,V> from(CacheBuilder<K,V> cacheBuilder) {
         Preconditions.checkNotNull(cacheBuilder, "'cacheBuilder' instance is required");
-        return new SnapshotRestartableCacheBuilder<>(cacheBuilder);
+        return new SnapshotCacheBuilder<>(cacheBuilder);
     }
 
     public Cache<K, V> build() {

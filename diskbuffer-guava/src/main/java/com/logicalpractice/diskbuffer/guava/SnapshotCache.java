@@ -1,7 +1,6 @@
 package com.logicalpractice.diskbuffer.guava;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.CacheStats;
@@ -44,7 +43,7 @@ class SnapshotCache<K, V> implements LoadingCache<K, V> {
     private final Deserializer<V> valueDeserializer;
 
     SnapshotCache(
-            SnapshotRestartableCacheBuilder<K, V> builder,
+            SnapshotCacheBuilder<K, V> builder,
             @Nullable CacheLoader<K, V> cacheLoader
     ) {
         this.directory = new File(builder.baseDirectory());
@@ -224,7 +223,7 @@ class SnapshotCache<K, V> implements LoadingCache<K, V> {
 
         private final SnapshotCache<K, V> snapshotCache;
 
-        ManualCache(SnapshotRestartableCacheBuilder<K, V> builder) {
+        ManualCache(SnapshotCacheBuilder<K, V> builder) {
             Preconditions.checkNotNull(builder, "'builder' is required");
             this.snapshotCache = new SnapshotCache<K, V>(builder, null);
         }
@@ -246,7 +245,7 @@ class SnapshotCache<K, V> implements LoadingCache<K, V> {
     static class LocalLoadingCache<K, V> extends ForwardingLoadingCache<K, V> {
         private final SnapshotCache<K, V> snapshotCache;
 
-        LocalLoadingCache(SnapshotRestartableCacheBuilder<K, V> builder, CacheLoader<K, V> loader) {
+        LocalLoadingCache(SnapshotCacheBuilder<K, V> builder, CacheLoader<K, V> loader) {
             Preconditions.checkNotNull(loader, "'loader' is required");
             this.snapshotCache = new SnapshotCache<>(builder, loader);
         }

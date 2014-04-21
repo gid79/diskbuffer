@@ -1,7 +1,6 @@
 package com.logicalpractice.diskbuffer.guava
 
 import com.google.common.cache.CacheBuilder
-import com.google.common.cache.CacheLoader
 import spock.lang.Specification
 
 /**
@@ -11,7 +10,7 @@ class SnapshotCacheSpec extends Specification {
 
   def "should be able to write and read self"() {
     setup:
-    def cache1 = new SnapshotCache.ManualCache(SnapshotRestartableCacheBuilder.from(CacheBuilder.newBuilder()))
+    def cache1 = new SnapshotCache.ManualCache(SnapshotCacheBuilder.from(CacheBuilder.newBuilder()))
     cache1.putAll([
         1:2,
         2:3,
@@ -19,7 +18,7 @@ class SnapshotCacheSpec extends Specification {
         4:5
     ])
 
-    def cache2 = new SnapshotCache.ManualCache(SnapshotRestartableCacheBuilder.from(CacheBuilder.newBuilder()))
+    def cache2 = new SnapshotCache.ManualCache(SnapshotCacheBuilder.from(CacheBuilder.newBuilder()))
 
     when:
     def baos = new ByteArrayOutputStream()
